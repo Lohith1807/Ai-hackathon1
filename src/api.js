@@ -37,9 +37,7 @@ export const request = async (endpoint, method = 'GET', body = null) => {
 };
 
 export const register = (data) => request('/auth/register', 'POST', data);
-export const verifyRegisterOtp = (email, otp) => request('/auth/register/verify', 'POST', { email, otp });
-export const sendOtp = (identifier) => request('/auth/login/send-otp', 'POST', { identifier });
-export const verifyOtp = (phone, otp) => request('/auth/login/verify-otp', 'POST', { phone, otp });
+export const login = (identifier, password) => request('/auth/login', 'POST', { identifier, password });
 export const getProfile = () => request('/auth/profile');
 export const updateProfile = (data) => request('/auth/profile', 'PUT', data);
 

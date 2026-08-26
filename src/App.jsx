@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { getProfile } from './api';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import { Activity, LogOut, User as UserIcon, LayoutGrid } from 'lucide-react';
+import AIChatBot from './components/AIChatBot';
+import { Activity, LogOut, User as UserIcon, LayoutGrid, Menu, X } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
   const [user, setUser] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -22,43 +26,49 @@ export default function App() {
     }
   }, []);
 
+  const isDashboard = location.pathname.startsWith('/dashboard');
+
   return (
-    <Router>
+    <>
       <header className="header">
-        <div className="container header-content">
-          <Link to="/" className="logo">
-            <div style={{ width: '40px', height: '40px', background: 'var(--brand-gradient)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--brand-glow)' }}>
+        <div className="container header-content" style={{ justifyContent: 'flex-start', flexWrap: 'nowrap' }}>
+          {user && (
+            <button 
+              onClick={() => {
+                if (!isDashboard) {
+                  setSidebarOpen(true);
+                  navigate('/dashboard');
+                } else {
+                  setSidebarOpen(!sidebarOpen);
+                }
+              }} 
+              className="btn-secondary" 
+              style={{ marginRight: '1rem', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              aria-label="Toggle Sidebar"
+            >
+              {sidebarOpen && isDashboard ? (
+                <X size={20} />
+              ) : (
+                <Menu size={20} />
+              )}
+            </button>
+          )}
+          <Link to="/" className="logo" aria-label="Medy Home" style={{ marginRight: 'auto' }}>
+            <div style={{ width: '40px', height: '40px', background: 'var(--brand-gradient)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--brand-glow)' }} aria-hidden="true">
               <Activity size={24} color="white" />
             </div>
             <span>Medy<span style={{ color: 'var(--brand-primary)' }}>.</span></span>
           </Link>
-          <nav className="nav-links">
-            <Link to="/">Home</Link>
+          <nav className="nav-links" aria-label="Main Navigation">
             {user ? (
-              <>
-                <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                   <LayoutGrid size={18} /> Dashboard
+              user.role === 'User' ? (
+                <Link to="/dashboard" state={{ tab: 'BookAppointment' }} className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontWeight: 600, whiteSpace: 'nowrap', color: 'white' }}>
+                  Book an Appointment
                 </Link>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginLeft: '1rem', paddingLeft: '1.5rem', borderLeft: '1px solid var(--border-light)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
-                      <UserIcon size={16} color="var(--brand-primary)" />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-bold)' }}>{user.name.split(' ')[0]}</span>
-                  </div>
-                  <button 
-                    className="btn-secondary" 
-                    onClick={() => { localStorage.clear(); window.location.href='/'; }}
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-                  >
-                    <LogOut size={16} /> Logout
-                  </button>
-                </div>
-              </>
+              ) : null
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <Link to="/login" style={{ fontWeight: 700 }}>Sign In</Link>
-                <Link to="/register" className="btn-primary" style={{ padding: '0.65rem 1.5rem' }}>Get Started</Link>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Link to="/login" className="btn-secondary" style={{ padding: '0.5rem 1.5rem', fontWeight: 600 }}>Sign In</Link>
               </div>
             )}
           </nav>
@@ -70,10 +80,12 @@ export default function App() {
           <Route path="/" element={<Home user={user} />} />
           <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={setUser} />} />
           <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-          <Route path="/dashboard/*" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+          <Route path="/dashboard/*" element={user ? <Dashboard user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} /> : <Navigate to="/login" />} />
         </Routes>
       </main>
       
+      <AIChatBot />
+
       <footer style={{ padding: '4rem 0', background: 'white', borderTop: '1px solid var(--border-light)', marginTop: '4rem' }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
           <div>
@@ -103,6 +115,14 @@ export default function App() {
           <p className="text-muted" style={{ fontSize: '0.85rem' }}>&copy; 2026 Medy Healthcare Systems. All rights reserved.</p>
         </div>
       </footer>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

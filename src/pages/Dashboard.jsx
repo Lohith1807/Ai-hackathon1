@@ -1,21 +1,41 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   myAppointments, getPendingDoctors, updateDoctorStatus, addDoctor, 
   getHospitalDoctors, generateSlots, getAppointments, updateAppointment, 
   addHospital, getHospitals, getAllApprovedDoctors, getHospitalDetailedDocs, 
   getHospitalDetailedStaff, adminCreateUser, addTeamMember, getHospitalTeam,
-  deleteDoctor, updateHospital, updateProfile, editDoctor
+  deleteDoctor, updateHospital, updateProfile, editDoctor,
+  getHospitalsForPatients, searchDoctors, getSlots, bookAppointment
 } from '../api';
 import { 
   User as UserIcon, Calendar, CheckSquare, PlusCircle, LayoutDashboard, 
   Clock, LogOut, Activity, Star, MapPin, Search, ChevronRight, ArrowLeft, Users,
-  ShieldCheck
+  ShieldCheck, Menu
 } from 'lucide-react';
 
-export default function Dashboard({ user }) {
+export default function Dashboard({ user, sidebarOpen, setSidebarOpen }) {
   const [adminTab, setAdminTab] = useState('Profile');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setAdminTab(location.state.tab);
+    }
+  }, [location.state]);
+
+  const handleNav = (tab) => {
+    setAdminTab(tab);
+    if (window.innerWidth < 768 && setSidebarOpen) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const goHome = () => {
+    if (window.innerWidth < 768 && setSidebarOpen) setSidebarOpen(false);
+    navigate('/');
+  };
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -38,55 +58,68 @@ export default function Dashboard({ user }) {
 
   return (
     <div className="app-layout">
-      <div className="sidebar">
-        <h3>{user.role} Portal</h3>
-        <p className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {sidebarOpen && (
+        <div className="sidebar" style={{ minWidth: '260px' }}>
+        <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-bold)' }}>
+          {user.role === 'HospitalManager' ? 'Manager' : user.role} Portal
+        </h3>
+        <p className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
           <UserIcon size={16} /> {user?.name || 'User'}
         </p>
-        <hr />
-        <ul>
+        <hr style={{ margin: '1.5rem 0', opacity: 0.5 }} />
+        <ul style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <li onClick={goHome}><Activity size={18} /> Home</li>
           {user.role === 'Admin' && (
             <>
-              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => setAdminTab('Profile')}><UserIcon size={18} /> Profile</li>
-              <li className={adminTab === 'Overview' ? 'active' : ''} onClick={() => setAdminTab('Overview')}><LayoutDashboard size={18} /> Overview</li>
-              <li className={adminTab === 'Hospitals' ? 'active' : ''} onClick={() => setAdminTab('Hospitals')}><Activity size={18} /> Hospitals</li>
-              <li className={adminTab === 'ManageDoctors' ? 'active' : ''} onClick={() => setAdminTab('ManageDoctors')}><CheckSquare size={18} /> Manage Doctors</li>
-              <li className={adminTab === 'Users' ? 'active' : ''} onClick={() => setAdminTab('Users')}><PlusCircle size={18} /> User Management</li>
+              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => handleNav('Profile')}><UserIcon size={18} /> Profile</li>
+              <li className={adminTab === 'Overview' ? 'active' : ''} onClick={() => handleNav('Overview')}><LayoutDashboard size={18} /> Overview</li>
+              <li className={adminTab === 'Hospitals' ? 'active' : ''} onClick={() => handleNav('Hospitals')}><Activity size={18} /> Hospitals</li>
+              <li className={adminTab === 'ManageDoctors' ? 'active' : ''} onClick={() => handleNav('ManageDoctors')}><CheckSquare size={18} /> Manage Doctors</li>
+              <li className={adminTab === 'Users' ? 'active' : ''} onClick={() => handleNav('Users')}><PlusCircle size={18} /> User Management</li>
             </>
           )}
           {user.role === 'User' && (
             <>
-              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => setAdminTab('Profile')}><UserIcon size={18} /> Profile</li>
-              <li className={adminTab === 'MyBookings' ? 'active' : ''} onClick={() => setAdminTab('MyBookings')}><Calendar size={18} /> My Bookings</li>
+              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => handleNav('Profile')}><UserIcon size={18} /> Profile</li>
+              <li className={adminTab === 'MyBookings' ? 'active' : ''} onClick={() => handleNav('MyBookings')}><Calendar size={18} /> My Bookings</li>
+              <li className={adminTab === 'BookAppointment' ? 'active' : ''} onClick={() => handleNav('BookAppointment')}><PlusCircle size={18} /> Book Appointment</li>
             </>
           )}
           {user.role === 'HospitalManager' && (
             <>
-              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => setAdminTab('Profile')}><UserIcon size={18} /> Profile</li>
-              <li className={adminTab === 'ManagerDocs' ? 'active' : ''} onClick={() => setAdminTab('ManagerDocs')}><PlusCircle size={18} /> Hospital Doctors</li>
+              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => handleNav('Profile')}><UserIcon size={18} /> Profile</li>
+              <li className={adminTab === 'ManagerDocs' ? 'active' : ''} onClick={() => handleNav('ManagerDocs')}><PlusCircle size={18} /> Hospital Doctors</li>
             </>
           )}
           {user.role === 'Staff' && (
             <>
-              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => setAdminTab('Profile')}><UserIcon size={18} /> Profile</li>
-              <li className={adminTab === 'StaffAppts' ? 'active' : ''} onClick={() => setAdminTab('StaffAppts')}><Calendar size={18} /> Manage Appointments</li>
+              <li className={adminTab === 'Profile' ? 'active' : ''} onClick={() => handleNav('Profile')}><UserIcon size={18} /> Profile</li>
+              <li className={adminTab === 'StaffAppts' ? 'active' : ''} onClick={() => handleNav('StaffAppts')}><Calendar size={18} /> Manage Appointments</li>
             </>
           )}
+
+          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+            <AnimatedLogoutButton onLogout={() => { localStorage.clear(); window.location.href='/'; }} />
+          </div>
         </ul>
       </div>
-      <div className="main-content">
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>
-          Welcome back, {user?.name ? (user.name.startsWith('Dr.') ? user.name.split(' ').slice(0, 2).join(' ') : user.name.split(' ')[0]) : 'User'}!
-        </h2>
+      )}
+      <div className={`main-content ${sidebarOpen ? 'hide-on-mobile' : ''}`} style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Welcome back, {user?.name ? (user.name.startsWith('Dr.') ? user.name.split(' ').slice(0, 2).join(' ') : user.name.split(' ')[0]) : 'User'}!
+          </h2>
+        </div>
         
         {adminTab === 'Profile' && <ProfileView user={user} />}
         {adminTab !== 'Profile' && (
-          <>
-            {user.role === 'User' && <UserDashboard />}
-            {user.role === 'Admin' && <AdminDashboard activeTab={adminTab} />}
+          <div style={{ marginTop: '2rem' }}>
+            {adminTab === 'MyBookings' && <UserMyBookings />}
+            {adminTab === 'BookAppointment' && <UserBookAppointmentView />}
+            {adminTab === 'Overview' && <AdminDashboard activeTab={adminTab} />}
             {user.role === 'HospitalManager' && <ManagerDashboard />}
             {user.role === 'Staff' && <StaffDashboard />}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -321,24 +354,24 @@ function AdminDashboard({ activeTab }) {
   return (
     <div>
       {activeTab === 'Overview' && (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-          <div className="card" style={{ borderLeft: '4px solid var(--brand-primary)', padding: '2rem' }}>
-            <h4 className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>TOTAL HOSPITALS</h4>
-            <p style={{ fontSize: '2.5rem', fontWeight: 800 }}>{hospitals.length}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div className="card" style={{ borderLeft: '4px solid var(--brand-primary)', padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+            <h4 className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>TOTAL HOSPITALS</h4>
+            <p style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: 'var(--text-bold)' }}>{hospitals.length}</p>
           </div>
-          <div className="card" style={{ borderLeft: '4px solid var(--success)', padding: '2rem' }}>
-            <h4 className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>ACTIVE DOCTORS</h4>
-            <p style={{ fontSize: '2.5rem', fontWeight: 800 }}>{approvedDocs.length}</p>
+          <div className="card" style={{ borderLeft: '4px solid var(--success)', padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+            <h4 className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>ACTIVE DOCTORS</h4>
+            <p style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: 'var(--text-bold)' }}>{approvedDocs.length}</p>
           </div>
-          <div className="card" style={{ borderLeft: '4px solid var(--warning)', padding: '2rem' }}>
-            <h4 className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>PENDING VERIFICATIONS</h4>
-            <p style={{ fontSize: '2.5rem', fontWeight: 800 }}>{pendingDocs.length}</p>
+          <div className="card" style={{ borderLeft: '4px solid var(--warning)', padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+            <h4 className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>PENDING VERIFICATIONS</h4>
+            <p style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: 'var(--text-bold)' }}>{pendingDocs.length}</p>
           </div>
         </div>
       )}
 
       {activeTab === 'Hospitals' && (
-        <div className="table-wrapper">
+        <div className="table-responsive">
           <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)' }}>
             <h3>Hospitals Registry</h3>
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -399,7 +432,7 @@ function AdminDashboard({ activeTab }) {
       {activeTab === 'ManageDoctors' && (
         <div>
           {showVerifications ? (
-            <div className="table-wrapper">
+            <div className="table-responsive">
               <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)' }}>
                 <h3>Pending Verifications ({pendingDocs.length})</h3>
                 <button onClick={() => setShowVerifications(false)} className="btn-secondary">Return to Doctors List</button>
@@ -423,7 +456,7 @@ function AdminDashboard({ activeTab }) {
               )}
             </div>
           ) : (
-            <div className="table-wrapper">
+            <div className="table-responsive">
               <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3>Doctors Registry</h3>
@@ -537,13 +570,13 @@ function AdminHospitalDetail({ hospital, onBack }) {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(1, 1fr)', gap: '2rem' }}>
+      <div className="grid" style={{ gap: '2rem' }}>
         <div className="card" style={{ background: 'white', borderLeft: '6px solid var(--brand-primary)', padding: '2.5rem' }}>
           <div style={{ paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.5rem' }}>Hospital Doctors</h3>
           </div>
           {loading ? <p>Fetching doctors...</p> : (
-            <div className="table-wrapper" style={{ border: 'none', padding: 0 }}>
+            <div className="table-responsive" style={{ border: 'none', padding: 0 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr style={{ background: 'var(--bg-main)', textAlign: 'left' }}><th style={{ padding: '1rem' }}>Doctor</th><th style={{ padding: '1rem' }}>Expertise</th><th>Status</th></tr></thead>
                 <tbody>
@@ -565,7 +598,7 @@ function AdminHospitalDetail({ hospital, onBack }) {
             <h3 style={{ fontSize: '1.5rem' }}>Hospital Team</h3>
           </div>
           {loading ? <p>Fetching roster...</p> : (
-            <div className="table-wrapper" style={{ border: 'none', padding: 0 }}>
+            <div className="table-responsive" style={{ border: 'none', padding: 0 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr style={{ background: 'var(--bg-main)', textAlign: 'left' }}><th style={{ padding: '1rem' }}>Member</th><th style={{ padding: '1rem' }}>Identity</th></tr></thead>
                 <tbody>
@@ -762,7 +795,7 @@ function TeamManagement({ team, loadTeam }) {
         </form>
       )}
 
-      <div className="table-wrapper">
+      <div className="table-responsive">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ textAlign: 'left', background: 'var(--bg-main)' }}><th style={{ padding: '1rem' }}>Name</th><th style={{ padding: '1rem' }}>Role</th><th style={{ padding: '1rem' }}>Contact</th></tr></thead>
           <tbody>
@@ -864,7 +897,7 @@ function StaffDashboard() {
                 <p className="text-muted">No clinical sessions registered for this hospital.</p>
               </div>
             ) : (
-              <div className="table-wrapper" style={{ border: 'none', padding: 0 }}>
+              <div className="table-responsive" style={{ border: 'none', padding: 0 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', background: 'var(--bg-main)', borderBottom: '2px solid var(--border-light)' }}>
@@ -948,7 +981,7 @@ function StaffDashboard() {
               </div>
             </div>
           )}
-          <div className="table-wrapper">
+          <div className="table-responsive">
              <div style={{ padding: '1.5rem 2.5rem', background: 'white' }}>
               <h3>Operational Roster</h3>
               <p className="text-muted">Manage clinical availability for doctors.</p>
@@ -968,6 +1001,368 @@ function StaffDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const logoutButtonStates = {
+  'default': {
+    '--figure-duration': '100',
+    '--transform-figure': 'none',
+    '--walking-duration': '100',
+    '--transform-arm1': 'none',
+    '--transform-wrist1': 'none',
+    '--transform-arm2': 'none',
+    '--transform-wrist2': 'none',
+    '--transform-leg1': 'none',
+    '--transform-calf1': 'none',
+    '--transform-leg2': 'none',
+    '--transform-calf2': 'none'
+  },
+  'hover': {
+    '--figure-duration': '100',
+    '--transform-figure': 'translateX(1.5px)',
+    '--walking-duration': '100',
+    '--transform-arm1': 'rotate(-5deg)',
+    '--transform-wrist1': 'rotate(-15deg)',
+    '--transform-arm2': 'rotate(5deg)',
+    '--transform-wrist2': 'rotate(6deg)',
+    '--transform-leg1': 'rotate(-10deg)',
+    '--transform-calf1': 'rotate(5deg)',
+    '--transform-leg2': 'rotate(20deg)',
+    '--transform-calf2': 'rotate(-20deg)'
+  },
+  'walking1': {
+    '--figure-duration': '300',
+    '--transform-figure': 'translateX(11px)',
+    '--walking-duration': '300',
+    '--transform-arm1': 'translateX(-4px) translateY(-2px) rotate(120deg)',
+    '--transform-wrist1': 'rotate(-5deg)',
+    '--transform-arm2': 'translateX(4px) rotate(-110deg)',
+    '--transform-wrist2': 'rotate(-5deg)',
+    '--transform-leg1': 'translateX(-3px) rotate(80deg)',
+    '--transform-calf1': 'rotate(-30deg)',
+    '--transform-leg2': 'translateX(4px) rotate(-60deg)',
+    '--transform-calf2': 'rotate(20deg)'
+  },
+  'walking2': {
+    '--figure-duration': '400',
+    '--transform-figure': 'translateX(17px)',
+    '--walking-duration': '300',
+    '--transform-arm1': 'rotate(60deg)',
+    '--transform-wrist1': 'rotate(-15deg)',
+    '--transform-arm2': 'rotate(-45deg)',
+    '--transform-wrist2': 'rotate(6deg)',
+    '--transform-leg1': 'rotate(-5deg)',
+    '--transform-calf1': 'rotate(10deg)',
+    '--transform-leg2': 'rotate(10deg)',
+    '--transform-calf2': 'rotate(-20deg)'
+  },
+  'falling1': {
+    '--figure-duration': '1600',
+    '--walking-duration': '400',
+    '--transform-arm1': 'rotate(-60deg)',
+    '--transform-wrist1': 'none',
+    '--transform-arm2': 'rotate(30deg)',
+    '--transform-wrist2': 'rotate(120deg)',
+    '--transform-leg1': 'rotate(-30deg)',
+    '--transform-calf1': 'rotate(-20deg)',
+    '--transform-leg2': 'rotate(20deg)'
+  },
+  'falling2': {
+    '--walking-duration': '300',
+    '--transform-arm1': 'rotate(-100deg)',
+    '--transform-arm2': 'rotate(-60deg)',
+    '--transform-wrist2': 'rotate(60deg)',
+    '--transform-leg1': 'rotate(80deg)',
+    '--transform-calf1': 'rotate(20deg)',
+    '--transform-leg2': 'rotate(-60deg)'
+  },
+  'falling3': {
+    '--walking-duration': '500',
+    '--transform-arm1': 'rotate(-30deg)',
+    '--transform-wrist1': 'rotate(40deg)',
+    '--transform-arm2': 'rotate(50deg)',
+    '--transform-wrist2': 'none',
+    '--transform-leg1': 'rotate(-30deg)',
+    '--transform-leg2': 'rotate(20deg)',
+    '--transform-calf2': 'none'
+  }
+};
+
+function AnimatedLogoutButton({ onLogout }) {
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+    
+    button.state = 'default';
+    
+    const updateButtonState = (state) => {
+      if (logoutButtonStates[state]) {
+        button.state = state;
+        for (let key in logoutButtonStates[state]) {
+          button.style.setProperty(key, logoutButtonStates[state][key]);
+        }
+      }
+    };
+
+    const handleMouseEnter = () => {
+      if (button.state === 'default') updateButtonState('hover');
+    };
+    
+    const handleMouseLeave = () => {
+      if (button.state === 'hover') updateButtonState('default');
+    };
+    
+    const handleClick = () => {
+      if (button.state === 'default' || button.state === 'hover') {
+        button.classList.add('clicked');
+        updateButtonState('walking1');
+        setTimeout(() => {
+          button.classList.add('door-slammed');
+          updateButtonState('walking2');
+          setTimeout(() => {
+            button.classList.add('falling');
+            updateButtonState('falling1');
+            setTimeout(() => {
+              updateButtonState('falling2');
+              setTimeout(() => {
+                updateButtonState('falling3');
+                setTimeout(() => {
+                  button.classList.remove('clicked', 'door-slammed', 'falling');
+                  updateButtonState('default');
+                  if(onLogout) onLogout();
+                }, 1000);
+              }, parseInt(logoutButtonStates['falling2']['--walking-duration'], 10));
+            }, parseInt(logoutButtonStates['falling1']['--walking-duration'], 10));
+          }, parseInt(logoutButtonStates['walking2']['--figure-duration'], 10));
+        }, parseInt(logoutButtonStates['walking1']['--figure-duration'], 10));
+      }
+    };
+
+    button.addEventListener('mouseenter', handleMouseEnter);
+    button.addEventListener('mouseleave', handleMouseLeave);
+    button.addEventListener('click', handleClick);
+
+    return () => {
+      button.removeEventListener('mouseenter', handleMouseEnter);
+      button.removeEventListener('mouseleave', handleMouseLeave);
+      button.removeEventListener('click', handleClick);
+    };
+  }, [onLogout]);
+
+  return (
+    <button ref={buttonRef} className="logoutButton logoutButton--light" style={{ width: '100%', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+      <svg className="doorway" viewBox="0 0 100 100">
+        <path d="M93.4 86.3H58.6c-1.9 0-3.4-1.5-3.4-3.4V17.1c0-1.9 1.5-3.4 3.4-3.4h34.8c1.9 0 3.4 1.5 3.4 3.4v65.8c0 1.9-1.5 3.4-3.4 3.4z" />
+        <path className="bang" d="M40.5 43.7L26.6 31.4l-2.5 6.7zM41.9 50.4l-19.5-4-1.4 6.3zM40 57.4l-17.7 3.9 3.9 5.7z" />
+      </svg>
+      <svg className="figure" viewBox="0 0 100 100">
+        <circle cx="52.1" cy="32.4" r="6.4" />
+        <path d="M50.7 62.8c-1.2 2.5-3.6 5-7.2 4-3.2-.9-4.9-3.5-4-7.8.7-3.4 3.1-13.8 4.1-15.8 1.7-3.4 1.6-4.6 7-3.7 4.3.7 4.6 2.5 4.3 5.4-.4 3.7-2.8 15.1-4.2 17.9z" />
+        <g className="arm1">
+          <path d="M55.5 56.5l-6-9.5c-1-1.5-.6-3.5.9-4.4 1.5-1 3.7-1.1 4.6.4l6.1 10c1 1.5.3 3.5-1.1 4.4-1.5.9-3.5.5-4.5-.9z" />
+          <path className="wrist1" d="M69.4 59.9L58.1 58c-1.7-.3-2.9-1.9-2.6-3.7.3-1.7 1.9-2.9 3.7-2.6l11.4 1.9c1.7.3 2.9 1.9 2.6 3.7-.4 1.7-2 2.9-3.8 2.6z" />
+        </g>
+        <g className="arm2">
+          <path d="M34.2 43.6L45 40.3c1.7-.6 3.5.3 4 2 .6 1.7-.3 4-2 4.5l-10.8 2.8c-1.7.6-3.5-.3-4-2-.6-1.6.3-3.4 2-4z" />
+          <path className="wrist2" d="M27.1 56.2L32 45.7c.7-1.6 2.6-2.3 4.2-1.6 1.6.7 2.3 2.6 1.6 4.2L33 58.8c-.7 1.6-2.6 2.3-4.2 1.6-1.7-.7-2.4-2.6-1.7-4.2z" />
+        </g>
+        <g className="leg1">
+          <path d="M52.1 73.2s-7-5.7-7.9-6.5c-.9-.9-1.2-3.5-.1-4.9 1.1-1.4 3.8-1.9 5.2-.9l7.9 7c1.4 1.1 1.7 3.5.7 4.9-1.1 1.4-4.4 1.5-5.8.4z" />
+          <path className="calf1" d="M52.6 84.4l-1-12.8c-.1-1.9 1.5-3.6 3.5-3.7 2-.1 3.7 1.4 3.8 3.4l1 12.8c.1 1.9-1.5 3.6-3.5 3.7-2 0-3.7-1.5-3.8-3.4z" />
+        </g>
+        <g className="leg2">
+          <path d="M37.8 72.7s1.3-10.2 1.6-11.4 2.4-2.8 4.1-2.6c1.7.2 3.6 2.3 3.4 4l-1.8 11.1c-.2 1.7-1.7 3.3-3.4 3.1-1.8-.2-4.1-2.4-3.9-4.2z" />
+          <path className="calf2" d="M29.5 82.3l9.6-10.9c1.3-1.4 3.6-1.5 5.1-.1 1.5 1.4.4 4.9-.9 6.3l-8.5 9.6c-1.3 1.4-3.6 1.5-5.1.1-1.4-1.3-1.5-3.5-.2-5z" />
+        </g>
+      </svg>
+      <svg className="door" viewBox="0 0 100 100">
+        <path d="M93.4 86.3H58.6c-1.9 0-3.4-1.5-3.4-3.4V17.1c0-1.9 1.5-3.4 3.4-3.4h34.8c1.9 0 3.4 1.5 3.4 3.4v65.8c0 1.9-1.5 3.4-3.4 3.4z" />
+        <circle cx="66" cy="50" r="3.7" />
+      </svg>
+      <span className="button-text">Logout</span>
+    </button>
+  );
+}
+
+function UserMyBookings() {
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    myAppointments().then(data => {
+      setAppointments(data || []);
+      setLoading(false);
+    }).catch(e => {
+      setLoading(false);
+    });
+  }, []);
+
+  return (
+    <div className="card" style={{ padding: '2rem', background: 'white', borderLeft: '4px solid var(--brand-primary)' }}>
+      <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>My Bookings</h3>
+      {loading ? <p>Loading...</p> : (
+        appointments.length === 0 ? <p className="text-muted">No appointments found.</p> : (
+          <table style={{ width: '100%', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: 'var(--bg-main)' }}>
+                <th style={{ padding: '1rem' }}>Date & Time</th>
+                <th style={{ padding: '1rem' }}>Doctor</th>
+                <th style={{ padding: '1rem' }}>Hospital</th>
+                <th style={{ padding: '1rem' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.map(a => (
+                <tr key={a.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '1rem' }}>{a.Slot?.date} at {a.Slot?.startTime}</td>
+                  <td style={{ padding: '1rem' }}>Dr. {a.Slot?.Doctor?.name}</td>
+                  <td style={{ padding: '1rem' }}>{a.Slot?.Doctor?.Hospital?.name}</td>
+                  <td style={{ padding: '1rem' }}><span className={`status-badge status-${a.status}`}>{a.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+    </div>
+  );
+}
+
+function UserBookAppointmentView() {
+  const [step, setStep] = useState(1);
+  const [hospitals, setHospitals] = useState([]);
+  const [selectedHospital, setSelectedHospital] = useState(null);
+  const [doctors, setDoctors] = useState([]);
+  const [specialization, setSpecialization] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [slots, setSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (step === 1) {
+      setLoading(true);
+      getHospitalsForPatients().then(data => { setHospitals(data || []); setLoading(false); }).catch(() => setLoading(false));
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (step === 2 && selectedHospital) {
+      setLoading(true);
+      searchDoctors(specialization, selectedHospital.id).then(data => { setDoctors(data || []); setLoading(false); }).catch(() => setLoading(false));
+    }
+  }, [step, selectedHospital, specialization]);
+
+  useEffect(() => {
+    if (step === 3 && selectedDoctor && date) {
+      setLoading(true);
+      getSlots(selectedDoctor.id, date).then(data => { setSlots(data || []); setLoading(false); }).catch(() => setLoading(false));
+    }
+  }, [step, selectedDoctor, date]);
+
+  const handleBook = async () => {
+    try {
+      setLoading(true);
+      await bookAppointment(selectedSlot.id);
+      alert('Appointment confirmed!');
+      setStep(1); setSelectedHospital(null); setSelectedDoctor(null); setSelectedSlot(null);
+    } catch(e) {
+      alert(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: '2.5rem', background: 'white', borderTop: '4px solid var(--brand-primary)' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ flex: 1, padding: '1rem', background: step === 1 ? 'var(--brand-primary)' : 'var(--bg-main)', color: step === 1 ? 'white' : 'var(--text-main)', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold' }}>1. Select Hospital</div>
+        <div style={{ flex: 1, padding: '1rem', background: step === 2 ? 'var(--brand-primary)' : 'var(--bg-main)', color: step === 2 ? 'white' : 'var(--text-main)', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold' }}>2. Choose Doctor</div>
+        <div style={{ flex: 1, padding: '1rem', background: step === 3 ? 'var(--brand-primary)' : 'var(--bg-main)', color: step === 3 ? 'white' : 'var(--text-main)', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold' }}>3. Select Time</div>
+      </div>
+
+      {step === 1 && (
+        <div>
+          <h3 style={{ marginBottom: '1.5rem' }}>Available Hospitals</h3>
+          {loading ? <p>Loading hospitals...</p> : (
+            <div className="grid">
+              {hospitals.map(h => (
+                <div key={h.id} className="card" style={{ padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-light)' }} onClick={() => { setSelectedHospital(h); setStep(2); }}>
+                  <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{h.name}</h4>
+                  <p className="text-muted"><MapPin size={14} /> {h.location}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3>Doctors at {selectedHospital.name}</h3>
+            <button onClick={() => setStep(1)} className="btn-secondary">Back to Hospitals</button>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+            <input className="input-field" placeholder="Search doctor by name..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 2, minWidth: '200px' }} />
+            <select className="input-field" value={specialization} onChange={e => setSpecialization(e.target.value)} style={{ flex: 1, minWidth: '150px' }}>
+              <option value="">All Specialties</option>
+              <option value="Cardiologist">Cardiologist</option>
+              <option value="Dermatologist">Dermatologist</option>
+              <option value="Neurologist">Neurologist</option>
+              <option value="Pediatrician">Pediatrician</option>
+            </select>
+          </div>
+          {loading ? <p>Loading doctors...</p> : (
+            <div className="grid">
+              {doctors.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => (
+                <div key={d.id} className="card" style={{ padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-light)' }} onClick={() => { setSelectedDoctor(d); setStep(3); }}>
+                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Dr. {d.name}</h4>
+                  <p className="text-muted" style={{ fontWeight: 'bold', color: 'var(--brand-primary)' }}>{d.specialization}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 3 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3>Book with Dr. {selectedDoctor.name}</h3>
+            <button onClick={() => setStep(2)} className="btn-secondary">Back to Doctors</button>
+          </div>
+          <div style={{ marginBottom: '2rem' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Select Date</label>
+            <input type="date" className="input-field" value={date} onChange={e => setDate(e.target.value)} style={{ maxWidth: '250px' }} />
+          </div>
+          <h4 style={{ marginBottom: '1rem' }}>Available Time Slots</h4>
+          {loading ? <p>Loading slots...</p> : (
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+              {slots.length === 0 ? <p className="text-muted">No slots available for this date.</p> : slots.map(s => (
+                <div key={s.id} onClick={() => s.isBooked ? null : setSelectedSlot(s)} style={{ padding: '1rem 1.5rem', background: selectedSlot?.id === s.id ? 'var(--brand-primary)' : (s.isBooked ? 'var(--bg-main)' : 'white'), color: selectedSlot?.id === s.id ? 'white' : (s.isBooked ? '#999' : 'var(--text-main)'), border: '1px solid var(--border-light)', borderRadius: '8px', cursor: s.isBooked ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+                  {s.startTime}
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedSlot && (
+            <div style={{ padding: '1.5rem', background: 'var(--bg-main)', borderRadius: '8px', borderLeft: '4px solid var(--brand-primary)' }}>
+              <h4>Confirm Appointment</h4>
+              <p style={{ margin: '0.5rem 0 1.5rem' }}>You are booking an appointment with <strong>Dr. {selectedDoctor.name}</strong> on <strong>{date}</strong> at <strong>{selectedSlot.startTime}</strong>.</p>
+              <button onClick={handleBook} disabled={loading} className="btn-primary" style={{ padding: '0.75rem 2rem' }}>
+                {loading ? 'Confirming...' : 'Confirm Booking'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

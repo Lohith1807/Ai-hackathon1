@@ -1,65 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
 const { User, Hospital } = require('../models');
 const { Op } = require('sequelize');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
-
-const sendOTPEmail = (email, otp, purpose = 'Verification') => {
-  transporter.sendMail({
-    from: `"Medy Healthcare" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: `Medy ${purpose} OTP: ${otp}`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:2rem;border:1px solid #eee;border-radius:12px">
-        <h2 style="color:#1a56db;margin-bottom:1rem">Medy Healthcare</h2>
-        <p>Your ${purpose} code is:</p>
-        <div style="background:#f0f4ff;padding:1.5rem;border-radius:8px;text-align:center;margin:1.5rem 0">
-          <span style="font-size:2.5rem;font-weight:800;letter-spacing:0.5rem;color:#1a56db">${otp}</span>
-        </div>
-        <p style="color:#666;font-size:0.9rem">Expires in 5 minutes.</p>
-      </div>
-    `
-  }).catch(e => console.error('Email Fail:', e.message));
-};
-
+/**
+ * Register a new user in the system.
+ * Expects name, email, phone, location, dob, idFile, and password in the request body.
+ * Hashes the password and sets isVerified to true by default.
+ * @route POST /api/auth/register
+ */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, phone, location, dob, idFile } = req.body;
+    const { name, email, phone, location, dob, idFile, password } = req.body;
     let user = await User.findOne({ where: { phone } });
     if (user && user.isVerified) return res.status(400).json({ error: 'Phone already registered' });
     
-    const otp = generateOTP();
-    const expires = new Date(Date.now() + 300000);
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     if (user) {
-      await user.update({ name, email, location, dob, idFile, otp, otpExpires: expires });
+      await user.update({ name, email, location, dob, idFile, password: hashedPassword, isVerified: true });
     } else {
-      await User.create({ name, email, phone, location, dob, idFile, otp, otpExpires: expires, isVerified: false });
+      await User.create({ name, email, phone, location, dob, idFile, password: hashedPassword, isVerified: true });
     }
 
-    sendOTPEmail(email, otp, 'Registration');
-    res.json({ message: 'Code sent to your email!', requiresVerification: true });
+    res.json({ message: 'Registered successfully!' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post('/login/send-otp', async (req, res) => {
+/**
+ * Authenticate a user and issue a JWT session token.
+ * Supports identifier as either phone number or email address.
+ * @route POST /api/auth/login
+ */
+router.post('/login', async (req, res) => {
   try {
-    const { identifier } = req.body;
+    const { identifier, password } = req.body;
     const user = await User.findOne({ 
       where: { 
         [Op.or]: [{ phone: identifier }, { email: identifier }],
@@ -67,28 +47,12 @@ router.post('/login/send-otp', async (req, res) => {
       } 
     });
     
-    if (!user) return res.status(404).json({ error: 'Account not found or unverified.' });
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
 
-    const otp = generateOTP();
-    await user.update({ otp, otpExpires: new Date(Date.now() + 300000) });
-
-    sendOTPEmail(user.email, otp, 'Login');
-    res.json({ message: `Sent! Check ${user.email.substring(0,3)}***.com`, phone: user.phone });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/login/verify-otp', async (req, res) => {
-  try {
-    const { phone, otp } = req.body;
-    const user = await User.findOne({ where: { phone, isVerified: true } });
-    if (!user) return res.status(400).json({ error: 'Session expired.' });
-    if (new Date() > user.otpExpires && otp !== '1234') return res.status(400).json({ error: 'Code expired' });
-    if (user.otp !== otp && otp !== '1234') return res.status(400).json({ error: 'Invalid Code' });
+    const isValid = await bcrypt.compare(password, user.password || '');
+    if (!isValid) return res.status(401).json({ error: 'Invalid password.' });
 
     const token = jwt.sign({ id: user.id, role: user.role, hospitalId: user.hospitalId }, process.env.JWT_SECRET || 'supersecret123', { expiresIn: '1d' });
-    await user.update({ otp: null, otpExpires: null });
     res.json({ message: 'Success', token, user });
   } catch (error) {
     res.status(500).json({ error: error.message });

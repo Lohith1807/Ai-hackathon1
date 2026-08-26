@@ -13,7 +13,7 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('User', 'Admin', 'HospitalManager', 'Staff'),
     defaultValue: 'User'
   },
-  idFile: { type: DataTypes.TEXT('long') },
+  idFile: { type: DataTypes.TEXT },
   otp: { type: DataTypes.STRING }, // OTP stored directly in User table
   otpExpires: { type: DataTypes.DATE },
   isVerified: { type: DataTypes.BOOLEAN, defaultValue: false }
