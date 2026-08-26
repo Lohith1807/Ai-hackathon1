@@ -155,7 +155,7 @@ const bootstrap = async () => {
 // INIT BOOTSTRAP (Crucial for Serverless like Vercel)
 bootstrap();
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'test' && (process.env.NODE_ENV !== 'production' || !process.env.VERCEL)) {
   app.listen(PORT, () => {
       console.log(`--- Medy Backend Live @ Port ${PORT} ---`);
   });
