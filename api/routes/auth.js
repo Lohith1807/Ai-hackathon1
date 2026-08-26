@@ -28,7 +28,8 @@ router.post('/register', async (req, res) => {
 
     res.json({ message: 'Registered successfully!' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -55,7 +56,8 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role, hospitalId: user.hospitalId }, process.env.JWT_SECRET || 'supersecret123', { expiresIn: '1d' });
     res.json({ message: 'Success', token, user });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -66,7 +68,8 @@ router.get('/profile', authMid(), async (req, res) => {
     const user = await User.findByPk(req.user.id, { include: [Hospital] });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -79,7 +82,8 @@ router.put('/profile', authMid(), async (req, res) => {
     await user.update({ name, dob, phone, email });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

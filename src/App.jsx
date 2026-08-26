@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { getProfile } from './api';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import { Suspense, lazy } from 'react';
+
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 import AIChatBot from './components/AIChatBot';
 import { Activity, LogOut, User as UserIcon, LayoutGrid, Menu, X } from 'lucide-react';
 
@@ -76,12 +78,14 @@ function AppContent() {
       </header>
 
       <main>
-        <Routes>
-          <Route path="/" element={<Home user={user} />} />
-          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={setUser} />} />
-          <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-          <Route path="/dashboard/*" element={user ? <Dashboard user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} /> : <Navigate to="/login" />} />
-        </Routes>
+        <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--brand-primary)' }}>Loading Medy...</div>}>
+          <Routes>
+            <Route path="/" element={<Home user={user} />} />
+            <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={setUser} />} />
+            <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+            <Route path="/dashboard/*" element={user ? <Dashboard user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} /> : <Navigate to="/login" />} />
+          </Routes>
+        </Suspense>
       </main>
       
       <AIChatBot />
