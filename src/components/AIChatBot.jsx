@@ -47,10 +47,14 @@ export default function AIChatBot() {
     const lang = detectLang(text);
     utterance.lang = lang;
 
-    // Try to find a matching voice
+    // Try to find a female voice matching the language
     const voices = window.speechSynthesis.getVoices();
-    const matchedVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-    if (matchedVoice) utterance.voice = matchedVoice;
+    const langPrefix = lang.split('-')[0];
+    const langVoices = voices.filter(v => v.lang.startsWith(langPrefix));
+    const femaleVoice = langVoices.find(v => /female|woman|zira|heera|swara|google.*female/i.test(v.name))
+      || langVoices.find(v => !/male|david|mark|ravi/i.test(v.name))
+      || langVoices[0];
+    if (femaleVoice) utterance.voice = femaleVoice;
 
     utterance.rate = 1;
     utterance.pitch = 1;
