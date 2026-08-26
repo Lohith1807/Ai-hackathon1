@@ -59,6 +59,7 @@ export default function Login({ onLogin }) {
           <div style={{ position: 'relative' }}>
             <Phone size={20} color="var(--text-muted)" style={{ position: 'absolute', top: 22, left: 16 }} />
             <input 
+              aria-label="Phone or Email"
               className="input-field" 
               placeholder="Phone or Email" 
               value={identifier} 
@@ -71,6 +72,7 @@ export default function Login({ onLogin }) {
           <div style={{ position: 'relative' }}>
             <KeyRound size={20} color="var(--text-muted)" style={{ position: 'absolute', top: 22, left: 16 }} />
             <input 
+              aria-label="Password"
               type="password"
               className="input-field" 
               placeholder="Password" 
@@ -87,7 +89,7 @@ export default function Login({ onLogin }) {
         </form>
         
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Don't have an account? <span onClick={() => navigate('/register')} style={{ color: 'var(--brand-primary)', fontWeight: 800, cursor: 'pointer' }}>Register here</span>
+          Don't have an account? <span role="button" tabIndex={0} onKeyDown={(e) => { if(e.key === 'Enter') navigate('/register') }} onClick={() => navigate('/register')} style={{ color: 'var(--brand-primary)', fontWeight: 800, cursor: 'pointer' }}>Register here</span>
         </p>
       </section>
     </main>

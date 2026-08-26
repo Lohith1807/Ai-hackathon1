@@ -55,39 +55,39 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
           <div style={{ position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>FULL NAME</label>
-            <input type="text" name="name" className="input-field" placeholder="John Doe" required onChange={handleChange} />
+            <label htmlFor="reg-name" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>FULL NAME</label>
+            <input id="reg-name" type="text" name="name" className="input-field" placeholder="John Doe" required onChange={handleChange} />
           </div>
           
           <div style={{ position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>EMAIL ADDRESS</label>
-             <input type="email" name="email" className="input-field" placeholder="john@example.com" required onChange={handleChange} />
+            <label htmlFor="reg-email" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>EMAIL ADDRESS</label>
+             <input id="reg-email" type="email" name="email" className="input-field" placeholder="john@example.com" required onChange={handleChange} />
           </div>
 
           <div style={{ position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>PHONE NUMBER</label>
-            <input type="text" name="phone" className="input-field" placeholder="+1 (555) 000-0000" required onChange={handleChange} />
+            <label htmlFor="reg-phone" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>PHONE NUMBER</label>
+            <input id="reg-phone" type="text" name="phone" className="input-field" placeholder="+1 (555) 000-0000" required onChange={handleChange} />
           </div>
 
           <div style={{ position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>DATE OF BIRTH</label>
-            <input type="date" name="dob" className="input-field" required onChange={handleChange} />
+            <label htmlFor="reg-dob" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>DATE OF BIRTH</label>
+            <input id="reg-dob" type="date" name="dob" className="input-field" required onChange={handleChange} />
           </div>
 
           <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>PASSWORD</label>
-            <input type="password" name="password" className="input-field" placeholder="Create a strong password" required onChange={handleChange} />
+            <label htmlFor="reg-password" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>PASSWORD</label>
+            <input id="reg-password" type="password" name="password" className="input-field" placeholder="Create a strong password" required onChange={handleChange} />
           </div>
 
           <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>RESIDENTIAL LOCATION</label>
-            <input type="text" name="location" className="input-field" placeholder="San Francisco, CA" required onChange={handleChange} />
+            <label htmlFor="reg-loc" className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700 }}>RESIDENTIAL LOCATION</label>
+            <input id="reg-loc" type="text" name="location" className="input-field" placeholder="San Francisco, CA" required onChange={handleChange} />
           </div>
 
           <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-            <label className="text-muted" style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.85rem', fontWeight: 700 }}>GOVERNMENT IDENTITY VERIFICATION (REQUIRED)</label>
+            <label htmlFor="reg-id" className="text-muted" style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.85rem', fontWeight: 700 }}>GOVERNMENT IDENTITY VERIFICATION (REQUIRED)</label>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <input type="file" accept="image/*" className="input-field" required onChange={handleFileChange} style={{ padding: '0.75rem' }} />
+              <input id="reg-id" type="file" accept="image/*" className="input-field" required onChange={handleFileChange} style={{ padding: '0.75rem' }} />
               {formData.idFile && <div style={{ color: 'var(--success)', whiteSpace: 'nowrap', fontWeight: 800 }}>✓ ID Loaded</div>}
             </div>
             <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem' }}>Please upload a clear photo of your driving license or passport.</p>
@@ -98,7 +98,7 @@ export default function Register() {
               {loading ? 'Creating Account...' : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>Start Your Journey <ArrowRight size={20} /></span>}
             </button>
             <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '1rem', color: 'var(--text-muted)' }}>
-              Already have an account? <span onClick={() => navigate('/login')} style={{ color: 'var(--brand-primary)', fontWeight: 800, cursor: 'pointer' }}>Sign In here</span>
+              Already have an account? <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/login'); }} onClick={() => navigate('/login')} style={{ color: 'var(--brand-primary)', fontWeight: 800, cursor: 'pointer' }}>Sign In here</span>
             </p>
           </div>
         </form>

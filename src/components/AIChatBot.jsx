@@ -207,6 +207,7 @@ export default function AIChatBot() {
                 </div>
               </div>
               <button
+                aria-label="Close Chat"
                 onClick={() => { setIsOpen(false); stopSpeaking(); }}
                 style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -215,7 +216,7 @@ export default function AIChatBot() {
             </div>
 
             {/* Messages */}
-            <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#f8f9fa' }}>
+            <div aria-live="polite" style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#f8f9fa' }}>
               {messages.map((m, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: '0.4rem' }}>
                   <div style={{
@@ -314,6 +315,7 @@ export default function AIChatBot() {
                 <Mic size={20} />
               </button>
               <input
+                aria-label="Chat input"
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -330,6 +332,7 @@ export default function AIChatBot() {
                 }}
               />
               <button
+                aria-label="Send message"
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
                 style={{
