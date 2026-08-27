@@ -11,6 +11,72 @@ const { sequelize, User, Hospital } = require('./models');
 const authMid = require('./middleware');
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+
+/**
+ * Bootstrap: authenticate DB, sync tables, seed data
+ */
+let isDbReady = false;
+
+async function bootstrap(useAlter = false) {
+  if (isDbReady) return;
+  try {
+    await sequelize.authenticate();
+    console.log('--- Database Authenticated ---');
+    
+    // sync: create tables if they don't exist. alter: also update columns (slower).
+    await sequelize.sync(useAlter ? { alter: true } : {});
+    console.log('--- Database Models Synced ---');
+
+    // 1. Seed default Hospital first so we can link staff to it
+    const [hospital] = await Hospital.findOrCreate({
+      where: { name: 'City General Hospital' },
+      defaults: {
+        location: 'New York, NY',
+        status: 'Approved'
+      }
+    });
+
+    const hospitalId = hospital ? hospital.id : null;
+
+    // 2. Hash passwords — only seed if no users exist yet
+    const userCount = await User.count();
+    if (userCount === 0) {
+      const adminPass = await bcrypt.hash('admin123', 10);
+      const managerPass = await bcrypt.hash('manager123', 10);
+      const staffPass = await bcrypt.hash('staff123', 10);
+      const userPass = await bcrypt.hash('user123', 10);
+
+      // 3. Seed Roles
+      await User.findOrCreate({
+        where: { email: 'admin@gmail.com' },
+        defaults: { name: 'Platform Admin', phone: '1000000001', role: 'Admin', isVerified: true, password: adminPass }
+      });
+
+      await User.findOrCreate({
+        where: { email: 'manager@gmail.com' },
+        defaults: { name: 'Hospital Manager', phone: '1000000002', role: 'HospitalManager', isVerified: true, password: managerPass, hospitalId }
+      });
+
+      await User.findOrCreate({
+        where: { email: 'staff@gmail.com' },
+        defaults: { name: 'General Staff', phone: '1000000003', role: 'Staff', isVerified: true, password: staffPass, hospitalId }
+      });
+
+      await User.findOrCreate({
+        where: { email: 'user@gmail.com' },
+        defaults: { name: 'Standard Patient', phone: '1000000004', role: 'User', isVerified: true, password: userPass }
+      });
+      console.log('--- System Seed Complete ---');
+      console.log('--- Test Accounts Seeded: admin123, manager123, staff123, user123 ---');
+    }
+
+    isDbReady = true;
+  } catch (err) {
+    console.error('--- Bootstrap Failed ---');
+    console.error(err.message);
+  }
+}
 
 /**
  * Security & Efficiency Middlewares
@@ -28,6 +94,14 @@ const apiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', apiLimiter);
+
+// On Vercel: lazy-init DB on first API request (MUST be before route handlers)
+if (process.env.VERCEL) {
+  app.use('/api', async (req, res, next) => {
+    await bootstrap(false); // lightweight sync (no alter)
+    next();
+  });
+}
 
 /**
  * Application Routes
@@ -94,73 +168,9 @@ app.get('*', (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-
-const bootstrap = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('--- Database Authenticated ---');
-    
-    // Only sync models locally, NOT on Vercel on every cold start
-    if (!process.env.VERCEL) {
-      // Sync models - using alter to update without dropping everything
-      await sequelize.sync({ alter: true });
-      console.log('--- Database Models Synced ---');
-    }
-
-    // 1. Seed default Hospital first so we can link staff to it
-    const [hospital] = await Hospital.findOrCreate({
-      where: { name: 'City General Hospital' },
-      defaults: {
-        location: 'New York, NY',
-        status: 'Approved'
-      }
-    });
-
-    const hospitalId = hospital ? hospital.id : null;
-
-    // 2. Hash passwords
-    // Only hash once if user doesn't exist to save time
-    const userCount = await User.count();
-    if (userCount === 0) {
-      const adminPass = await bcrypt.hash('admin123', 10);
-      const managerPass = await bcrypt.hash('manager123', 10);
-      const staffPass = await bcrypt.hash('staff123', 10);
-      const userPass = await bcrypt.hash('user123', 10);
-
-      // 3. Seed Roles
-      await User.findOrCreate({
-        where: { email: 'admin@gmail.com' },
-        defaults: { name: 'Platform Admin', phone: '1000000001', role: 'Admin', isVerified: true, password: adminPass }
-      });
-
-      await User.findOrCreate({
-        where: { email: 'manager@gmail.com' },
-        defaults: { name: 'Hospital Manager', phone: '1000000002', role: 'HospitalManager', isVerified: true, password: managerPass, hospitalId }
-      });
-
-      await User.findOrCreate({
-        where: { email: 'staff@gmail.com' },
-        defaults: { name: 'General Staff', phone: '1000000003', role: 'Staff', isVerified: true, password: staffPass, hospitalId }
-      });
-
-      await User.findOrCreate({
-        where: { email: 'user@gmail.com' },
-        defaults: { name: 'Standard Patient', phone: '1000000004', role: 'User', isVerified: true, password: userPass }
-      });
-      console.log('--- System Seed Complete ---');
-      console.log('--- Test Accounts Seeded: admin123, manager123, staff123, user123 ---');
-    }
-
-  } catch (err) {
-    console.error('--- Bootstrap Failed ---');
-    console.error(err.message);
-  }
-};
-
-// INIT BOOTSTRAP (Crucial for Serverless like Vercel)
+// On localhost: full bootstrap with alter at startup
 if (!process.env.VERCEL) {
-  bootstrap();
+  bootstrap(true);
 }
 
 if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
