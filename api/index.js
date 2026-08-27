@@ -98,6 +98,9 @@ app.use('/api/', apiLimiter);
 // On Vercel: lazy-init DB on first API request (MUST be before route handlers)
 if (process.env.VERCEL) {
   app.use('/api', async (req, res, next) => {
+    // Skip bootstrap check for health endpoint so we can diagnose connection issues
+    if (req.path === '/health') return next();
+
     try {
       await bootstrap(false); // lightweight sync (no alter)
       if (!isDbReady) {
