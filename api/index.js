@@ -163,7 +163,7 @@ if (!process.env.VERCEL) {
   bootstrap();
 }
 
-if (process.env.NODE_ENV !== 'test' && (process.env.NODE_ENV !== 'production' || !process.env.VERCEL)) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
       console.log(`--- Medy Backend Live @ Port ${PORT} ---`);
   });
