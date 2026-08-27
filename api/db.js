@@ -58,7 +58,9 @@ try {
   sequelize = {
     define: () => ({ belongsTo: () => {}, hasMany: () => {} }),
     authenticate: async () => {},
-    sync: async () => {}
+    sync: async () => {},
+    query: async () => [[]],
+    __initError: err.message
   };
 }
 

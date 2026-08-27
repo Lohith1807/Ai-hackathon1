@@ -126,10 +126,15 @@ app.get('/api/health', async (req, res) => {
     nodeEnv: process.env.NODE_ENV
   };
   try {
-    await sequelize.authenticate();
-    info.dbConnected = true;
-    const [results] = await sequelize.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-    info.tables = results.map(r => r.table_name);
+    if (sequelize.__initError) {
+      info.dbConnected = false;
+      info.dbError = 'Init Error: ' + sequelize.__initError;
+    } else {
+      await sequelize.authenticate();
+      info.dbConnected = true;
+      const [results] = await sequelize.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+      info.tables = results.map(r => r.table_name);
+    }
   } catch (err) {
     info.dbConnected = false;
     info.dbError = err.message;
