@@ -98,10 +98,41 @@ app.use('/api/', apiLimiter);
 // On Vercel: lazy-init DB on first API request (MUST be before route handlers)
 if (process.env.VERCEL) {
   app.use('/api', async (req, res, next) => {
-    await bootstrap(false); // lightweight sync (no alter)
-    next();
+    try {
+      await bootstrap(false); // lightweight sync (no alter)
+      if (!isDbReady) {
+        return res.status(503).json({ error: 'Database is not ready. Please retry in a few seconds.' });
+      }
+      next();
+    } catch (err) {
+      console.error('Vercel bootstrap error:', err.message);
+      return res.status(503).json({ error: 'Service temporarily unavailable. Database connection failed.' });
+    }
   });
 }
+
+/**
+ * Health/debug endpoint to diagnose Vercel issues
+ */
+app.get('/api/health', async (req, res) => {
+  const info = {
+    dbReady: isDbReady,
+    hasDbUrl: !!process.env.DB_URL,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    isVercel: !!process.env.VERCEL,
+    nodeEnv: process.env.NODE_ENV
+  };
+  try {
+    await sequelize.authenticate();
+    info.dbConnected = true;
+    const [results] = await sequelize.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    info.tables = results.map(r => r.table_name);
+  } catch (err) {
+    info.dbConnected = false;
+    info.dbError = err.message;
+  }
+  res.json(info);
+});
 
 /**
  * Application Routes

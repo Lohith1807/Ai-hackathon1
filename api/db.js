@@ -11,11 +11,19 @@ try {
     sequelize = new Sequelize(process.env.DB_URL, {
       dialect: 'postgres',
       logging: false,
+      pool: {
+        min: 0,       // Serverless: don't keep idle connections
+        max: 5,
+        idle: 0,       // Release connections immediately when idle
+        acquire: 30000,
+        evict: 60000
+      },
       dialectOptions: {
         ssl: {
           require: true,
           rejectUnauthorized: false
-        }
+        },
+        connectTimeout: 10000 // 10s timeout to prevent hanging
       }
     });
   } else {
@@ -29,14 +37,20 @@ try {
         port: process.env.DB_PORT || 5432,
         dialect: dialect,
         storage: storage,
-        logging: false
+        logging: false,
+        pool: {
+          min: 0,
+          max: 5,
+          idle: 0,
+          acquire: 30000,
+          evict: 60000
+        }
       }
     );
   }
 
-  sequelize.authenticate()
-    .then(() => console.log(`--- Database Linked (${process.env.DB_URL ? 'postgres' : dialect}) ---`))
-    .catch(err => console.error('DB Connection Failed:', err.message));
+  // NOTE: authenticate() is called in bootstrap() inside index.js.
+  // No fire-and-forget call here — it caused race conditions on Vercel.
 
 } catch (err) {
   console.error('Sequelize Initialization Error:', err.message);
