@@ -1,86 +1,116 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('./db');
+const mongoose = require('mongoose');
 
-const User = sequelize.define('User', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  name: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false, unique: true },
-  phone: { type: DataTypes.STRING, allowNull: false, unique: true },
-  password: { type: DataTypes.STRING }, // Support for optional password login
-  dob: { type: DataTypes.DATEONLY },
-  location: { type: DataTypes.STRING },
+// Helper to use UUID strings as _id or map string IDs
+// For ease of migration, we'll let Mongoose use its native ObjectId,
+// but we will alias 'id' to '_id' in the JSON output via virtuals.
+const schemaOptions = {
+  timestamps: true, // adds createdAt and updatedAt
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+};
+
+// ── USER SCHEMA ──
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String, required: true, unique: true },
+  password: { type: String },
+  dob: { type: String }, // Storing as YYYY-MM-DD string
+  location: { type: String },
   role: { 
-    type: DataTypes.ENUM('User', 'Admin', 'HospitalManager', 'Staff'),
-    defaultValue: 'User'
+    type: String, 
+    enum: ['User', 'Admin', 'HospitalManager', 'Staff'],
+    default: 'User'
   },
-  idFile: { type: DataTypes.TEXT },
-  otp: { type: DataTypes.STRING }, // OTP stored directly in User table
-  otpExpires: { type: DataTypes.DATE },
-  isVerified: { type: DataTypes.BOOLEAN, defaultValue: false }
-});
+  idFile: { type: String },
+  otp: { type: String },
+  otpExpires: { type: Date },
+  isVerified: { type: Boolean, default: false },
+  hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' } // For Staff/Manager
+}, schemaOptions);
 
-const Hospital = sequelize.define('Hospital', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  name: { type: DataTypes.STRING, allowNull: false },
-  location: { type: DataTypes.STRING, allowNull: false },
-  contactInfo: { type: DataTypes.TEXT },
-  specialties: { type: DataTypes.TEXT },
-  status: { type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'), defaultValue: 'Approved' }
-});
-User.belongsTo(Hospital, { foreignKey: 'hospitalId' });
-Hospital.hasMany(User, { foreignKey: 'hospitalId' });
+// ── HOSPITAL SCHEMA ──
+const hospitalSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  location: { type: String, required: true },
+  contactInfo: { type: String },
+  specialties: { type: String },
+  status: { 
+    type: String, 
+    enum: ['Pending', 'Approved', 'Rejected'], 
+    default: 'Approved' 
+  }
+}, schemaOptions);
 
-const Doctor = sequelize.define('Doctor', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  name: { type: DataTypes.STRING, allowNull: false },
-  specialization: { type: DataTypes.STRING, allowNull: false },
-  experienceYears: { type: DataTypes.INTEGER, defaultValue: 0 },
-  workingHoursStart: { type: DataTypes.STRING, defaultValue: '09:00' },
-  workingHoursEnd: { type: DataTypes.STRING, defaultValue: '17:00' },
-  slotDurationMinutes: { type: DataTypes.INTEGER, defaultValue: 15 },
-  status: { type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'), defaultValue: 'Approved' },
-  fees: { type: DataTypes.FLOAT, defaultValue: 0 },
-  rating: { type: DataTypes.FLOAT, defaultValue: 0 }
-});
-Doctor.belongsTo(Hospital, { foreignKey: 'hospitalId' });
-Hospital.hasMany(Doctor, { foreignKey: 'hospitalId' });
+// ── DOCTOR SCHEMA ──
+const doctorSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  specialization: { type: String, required: true },
+  experienceYears: { type: Number, default: 0 },
+  workingHoursStart: { type: String, default: '09:00' },
+  workingHoursEnd: { type: String, default: '17:00' },
+  slotDurationMinutes: { type: Number, default: 15 },
+  status: { 
+    type: String, 
+    enum: ['Pending', 'Approved', 'Rejected'], 
+    default: 'Approved' 
+  },
+  fees: { type: Number, default: 0 },
+  rating: { type: Number, default: 0 },
+  hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital', required: true }
+}, schemaOptions);
 
-const Slot = sequelize.define('Slot', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  date: { type: DataTypes.DATEONLY, allowNull: false },
-  startTime: { type: DataTypes.STRING, allowNull: false },
-  endTime: { type: DataTypes.STRING, allowNull: false },
-  isBooked: { type: DataTypes.BOOLEAN, defaultValue: false }
-});
-Slot.belongsTo(Doctor, { foreignKey: 'doctorId' });
-Doctor.hasMany(Slot, { foreignKey: 'doctorId' });
+// ── SLOT SCHEMA ──
+const slotSchema = new mongoose.Schema({
+  date: { type: String, required: true }, // YYYY-MM-DD
+  startTime: { type: String, required: true }, // HH:mm
+  endTime: { type: String, required: true },   // HH:mm
+  isBooked: { type: Boolean, default: false },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true }
+}, schemaOptions);
 
-const Appointment = sequelize.define('Appointment', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  status: { type: DataTypes.ENUM('Pending', 'Confirmed', 'Rejected', 'Completed', 'Cancelled'), defaultValue: 'Pending' }
-});
-Appointment.belongsTo(User, { as: 'Patient', foreignKey: 'patientId' });
-Appointment.belongsTo(Doctor, { foreignKey: 'doctorId' });
-Appointment.belongsTo(Slot, { foreignKey: 'slotId' });
+// ── APPOINTMENT SCHEMA ──
+const appointmentSchema = new mongoose.Schema({
+  status: { 
+    type: String, 
+    enum: ['Pending', 'Confirmed', 'Rejected', 'Completed', 'Cancelled'], 
+    default: 'Pending' 
+  },
+  patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+  slotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot', required: true }
+}, schemaOptions);
 
-const WaitingList = sequelize.define('WaitingList', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  date: { type: DataTypes.DATEONLY, allowNull: false },
-  status: { type: DataTypes.ENUM('Waiting', 'Promoted', 'Cancelled'), defaultValue: 'Waiting' }
-});
-WaitingList.belongsTo(User, { as: 'Patient', foreignKey: 'patientId' });
-WaitingList.belongsTo(Doctor, { foreignKey: 'doctorId' });
+// ── WAITING LIST SCHEMA ──
+const waitingListSchema = new mongoose.Schema({
+  date: { type: String, required: true }, // YYYY-MM-DD
+  status: { 
+    type: String, 
+    enum: ['Waiting', 'Promoted', 'Cancelled'], 
+    default: 'Waiting' 
+  },
+  patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true }
+}, schemaOptions);
 
-const Review = sequelize.define('Review', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  rating: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 1, max: 5 } },
-  comment: { type: DataTypes.TEXT }
-});
-Review.belongsTo(User, { as: 'Patient', foreignKey: 'patientId' });
-Review.belongsTo(Doctor, { foreignKey: 'doctorId' });
+// ── REVIEW SCHEMA ──
+const reviewSchema = new mongoose.Schema({
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String },
+  patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true }
+}, schemaOptions);
+
+// ── MODEL REGISTRATION ──
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+const Hospital = mongoose.models.Hospital || mongoose.model('Hospital', hospitalSchema);
+const Doctor = mongoose.models.Doctor || mongoose.model('Doctor', doctorSchema);
+const Slot = mongoose.models.Slot || mongoose.model('Slot', slotSchema);
+const Appointment = mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);
+const WaitingList = mongoose.models.WaitingList || mongoose.model('WaitingList', waitingListSchema);
+const Review = mongoose.models.Review || mongoose.model('Review', reviewSchema);
 
 module.exports = {
-  sequelize,
   User,
   Hospital,
   Doctor,

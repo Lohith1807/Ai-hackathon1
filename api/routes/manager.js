@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { Doctor, Hospital, User, Appointment } = require('../models');
-const authMid = require('../middleware');
 
 router.post('/doctors', async (req, res) => {
   try {
@@ -21,10 +20,11 @@ router.post('/doctors', async (req, res) => {
 
 router.put('/doctors/:id', async (req, res) => {
   try {
-    const doctor = await Doctor.findOne({ where: { id: req.params.id, hospitalId: req.user.hospitalId } });
+    const doctor = await Doctor.findOne({ _id: req.params.id, hospitalId: req.user.hospitalId });
     if (!doctor) return res.status(404).json({ error: 'Doctor not found in your hospital' });
     
-    await doctor.update(req.body);
+    Object.assign(doctor, req.body);
+    await doctor.save();
     res.json(doctor);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -33,15 +33,15 @@ router.put('/doctors/:id', async (req, res) => {
 
 router.delete('/doctors/:id', async (req, res) => {
   try {
-    const doctor = await Doctor.findOne({ where: { id: req.params.id, hospitalId: req.user.hospitalId } });
+    const doctor = await Doctor.findOne({ _id: req.params.id, hospitalId: req.user.hospitalId });
     if (!doctor) return res.status(404).json({ error: 'Doctor not found in your hospital' });
     
-    const activeAppts = await Appointment.count({ where: { doctorId: doctor.id, status: ['Pending', 'Confirmed'] } });
+    const activeAppts = await Appointment.countDocuments({ doctorId: doctor._id, status: { $in: ['Pending', 'Confirmed'] } });
     if (activeAppts > 0) {
       return res.status(400).json({ error: 'Cannot remove Specialist with active appointments. Reschedule or Cancel them first.' });
     }
     
-    await doctor.destroy();
+    await doctor.deleteOne();
     res.json({ message: 'Doctor record exempted from hospital registry.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -50,7 +50,7 @@ router.delete('/doctors/:id', async (req, res) => {
 
 router.get('/doctors', async (req, res) => {
   try {
-    const doctors = await Doctor.findAll({ where: { hospitalId: req.user.hospitalId } });
+    const doctors = await Doctor.find({ hospitalId: req.user.hospitalId });
     res.json(doctors);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -77,10 +77,7 @@ router.post('/users', async (req, res) => {
 
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.findAll({ 
-      where: { hospitalId: req.user.hospitalId },
-      attributes: ['id', 'name', 'email', 'phone', 'role'] 
-    });
+    const users = await User.find({ hospitalId: req.user.hospitalId }).select('_id name email phone role');
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,7 +86,7 @@ router.get('/users', async (req, res) => {
 
 router.get('/hospital', async (req, res) => {
   try {
-    const hospital = await Hospital.findByPk(req.user.hospitalId);
+    const hospital = await Hospital.findById(req.user.hospitalId);
     res.json(hospital);
   } catch (err) {
     res.status(500).json({ error: err.message });

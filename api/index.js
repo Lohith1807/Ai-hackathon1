@@ -7,7 +7,8 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const { sequelize, User, Hospital } = require('./models');
+const { connectDB, isConnected, getInitError, mongoose } = require('./db');
+const { User, Hospital } = require('./models');
 const authMid = require('./middleware');
 
 const app = express();
@@ -16,31 +17,25 @@ const PORT = process.env.PORT || 5000;
 /**
  * Bootstrap: authenticate DB, sync tables, seed data
  */
-let isDbReady = false;
-
-async function bootstrap(useAlter = false) {
-  if (isDbReady) return;
+async function bootstrap() {
+  if (isConnected()) return;
   try {
-    await sequelize.authenticate();
-    console.log('--- Database Authenticated ---');
-    
-    // sync: create tables if they don't exist. alter: also update columns (slower).
-    await sequelize.sync(useAlter ? { alter: true } : {});
-    console.log('--- Database Models Synced ---');
+    await connectDB();
 
     // 1. Seed default Hospital first so we can link staff to it
-    const [hospital] = await Hospital.findOrCreate({
-      where: { name: 'City General Hospital' },
-      defaults: {
+    let hospital = await Hospital.findOne({ name: 'City General Hospital' });
+    if (!hospital) {
+      hospital = await Hospital.create({
+        name: 'City General Hospital',
         location: 'New York, NY',
         status: 'Approved'
-      }
-    });
+      });
+    }
 
-    const hospitalId = hospital ? hospital.id : null;
+    const hospitalId = hospital._id;
 
     // 2. Hash passwords — only seed if no users exist yet
-    const userCount = await User.count();
+    const userCount = await User.countDocuments();
     if (userCount === 0) {
       const adminPass = await bcrypt.hash('admin123', 10);
       const managerPass = await bcrypt.hash('manager123', 10);
@@ -48,30 +43,17 @@ async function bootstrap(useAlter = false) {
       const userPass = await bcrypt.hash('user123', 10);
 
       // 3. Seed Roles
-      await User.findOrCreate({
-        where: { email: 'admin@gmail.com' },
-        defaults: { name: 'Platform Admin', phone: '1000000001', role: 'Admin', isVerified: true, password: adminPass }
-      });
+      await User.create([
+        { name: 'Platform Admin', email: 'admin@gmail.com', phone: '1000000001', role: 'Admin', isVerified: true, password: adminPass },
+        { name: 'Hospital Manager', email: 'manager@gmail.com', phone: '1000000002', role: 'HospitalManager', isVerified: true, password: managerPass, hospitalId },
+        { name: 'General Staff', email: 'staff@gmail.com', phone: '1000000003', role: 'Staff', isVerified: true, password: staffPass, hospitalId },
+        { name: 'Standard Patient', email: 'user@gmail.com', phone: '1000000004', role: 'User', isVerified: true, password: userPass }
+      ]);
 
-      await User.findOrCreate({
-        where: { email: 'manager@gmail.com' },
-        defaults: { name: 'Hospital Manager', phone: '1000000002', role: 'HospitalManager', isVerified: true, password: managerPass, hospitalId }
-      });
-
-      await User.findOrCreate({
-        where: { email: 'staff@gmail.com' },
-        defaults: { name: 'General Staff', phone: '1000000003', role: 'Staff', isVerified: true, password: staffPass, hospitalId }
-      });
-
-      await User.findOrCreate({
-        where: { email: 'user@gmail.com' },
-        defaults: { name: 'Standard Patient', phone: '1000000004', role: 'User', isVerified: true, password: userPass }
-      });
       console.log('--- System Seed Complete ---');
       console.log('--- Test Accounts Seeded: admin123, manager123, staff123, user123 ---');
     }
 
-    isDbReady = true;
   } catch (err) {
     console.error('--- Bootstrap Failed ---');
     console.error(err.message);
@@ -98,12 +80,11 @@ app.use('/api/', apiLimiter);
 // On Vercel: lazy-init DB on first API request (MUST be before route handlers)
 if (process.env.VERCEL) {
   app.use('/api', async (req, res, next) => {
-    // Skip bootstrap check for health endpoint so we can diagnose connection issues
     if (req.path === '/health') return next();
 
     try {
-      await bootstrap(false); // lightweight sync (no alter)
-      if (!isDbReady) {
+      await bootstrap();
+      if (!isConnected()) {
         return res.status(503).json({ error: 'Database is not ready. Please retry in a few seconds.' });
       }
       next();
@@ -119,21 +100,21 @@ if (process.env.VERCEL) {
  */
 app.get('/api/health', async (req, res) => {
   const info = {
-    dbReady: isDbReady,
+    dbReady: isConnected(),
     hasDbUrl: !!process.env.DB_URL,
     hasJwtSecret: !!process.env.JWT_SECRET,
     isVercel: !!process.env.VERCEL,
     nodeEnv: process.env.NODE_ENV
   };
   try {
-    if (sequelize.__initError) {
+    const initErr = getInitError();
+    if (initErr) {
       info.dbConnected = false;
-      info.dbError = 'Init Error: ' + sequelize.__initError;
+      info.dbError = 'Init Error: ' + initErr;
     } else {
-      await sequelize.authenticate();
-      info.dbConnected = true;
-      const [results] = await sequelize.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-      info.tables = results.map(r => r.table_name);
+      await connectDB();
+      info.dbConnected = isConnected();
+      info.tables = Object.keys(mongoose.models);
     }
   } catch (err) {
     info.dbConnected = false;
@@ -207,9 +188,9 @@ app.get('*', (req, res) => {
   }
 });
 
-// On localhost: full bootstrap with alter at startup
+// On localhost: full bootstrap
 if (!process.env.VERCEL) {
-  bootstrap(true);
+  bootstrap();
 }
 
 if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
